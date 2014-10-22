@@ -13,7 +13,25 @@ RUN pip install numpy biopython scikit-learn pandas scipy sklearn-pandas bioblen
 RUN pip install patsy
 RUN pip install pysam khmer dendropy ggplot mpld3 sympy
 RUN DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y libreadline-dev
+
+RUN echo "deb http://cran.revolutionanalytics.com/bin/linux/debian wheezy-cran3/" >> /etc/apt/sources.list
+RUN gpg --keyserver pgp.mit.edu --recv-key 381BA480 && gpg -a --export 381BA480 > jranke_cran.asc && apt-key add jranke_cran.asc
+RUN DEBIAN_FRONTEND=noninteractive apt-get update
+RUN DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y r-base
 RUN pip install rpy2
+RUN DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y libxml2-dev libcurl4-openssl-dev
+RUN echo ' \
+    update.packages(checkBuilt = TRUE, ask = FALSE, repos="http://cran.rstudio.com/"); \
+    source("http://bioconductor.org/biocLite.R"); \
+    install.packages("dplyr", repos="http://cran.rstudio.com/"); \
+    install.packages("knitr", repos="http://cran.rstudio.com/"); \
+    install.packages("reshape2", repos="http://cran.rstudio.com/"); \
+' | R --vanilla
+RUN echo ' \
+    source("http://bioconductor.org/biocLite.R"); \
+    biocLite("cummeRbund"); \
+    ' | R --vanilla
+RUN pip install --upgrade bioblend
 RUN DEBIAN_FRONTEND=noninteractive apt-get remove -y --purge libzmq-dev python-dev libc-dev build-essential binutils gfortran
 RUN DEBIAN_FRONTEND=noninteractive apt-get autoremove -y
 RUN DEBIAN_FRONTEND=noninteractive apt-get clean -y && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
