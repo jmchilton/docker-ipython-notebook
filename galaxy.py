@@ -2,6 +2,7 @@ from bioblend import galaxy
 from bioblend.galaxy.tools import ToolClient
 from bioblend.galaxy.histories import HistoryClient
 from bioblend.galaxy.datasets import DatasetClient
+from bioblend.galaxy import objects
 import yaml
 import subprocess
 
@@ -10,7 +11,7 @@ def _get_conf( config_file = 'conf.yaml' ):
         conf = yaml.load(handle)
     return conf
 
-def get_galaxy_connection( ):
+def get_galaxy_connection( use_objects=False ):
     """
         Given access to the configuration dict that galaxy passed us, we try and connect to galaxy's API.
 
@@ -52,14 +53,26 @@ def get_galaxy_connection( ):
             raise Exception("No port")
 
         built_galaxy_url = 'http://%s:%s/%s' %  (galaxy_ip.strip(), galaxy_port, app_path.strip())
-        gi = galaxy.GalaxyInstance(url=built_galaxy_url.rstrip('/'), key=conf['api_key'])
-        gi.histories.get_histories()
+        url = built_galaxy_url.rstrip('/')
+        key=conf['api_key']
+        if use_objects:
+            gi = objects.GalaxyInstance(url, key)
+            gi.histories.list()
+        else:
+            gi = galaxy.GalaxyInstance(url=url, key=key)
+            gi.histories.get_histories()
     except:
         try:
-            gi = galaxy.GalaxyInstance(url=conf['galaxy_url'], key=conf['api_key'])
-            gi.histories.get_histories()
-        except:
-            raise Exception("Could not connect to a galaxy instance. Please contact your SysAdmin for help with this error")
+            url=conf['galaxy_url']
+            key=conf['api_key']
+            if use_objects:
+                gi = objects.GalaxyInstance(url, key)
+                gi.histories.list()
+            else:
+                gi = galaxy.GalaxyInstance(url=url, key=key)
+                gi.histories.get_histories()
+        except Exception as e:
+            raise Exception("Could not connect to a galaxy instance. Please contact your SysAdmin for help with this error" + str(e))
     return gi
 
 def _get_history_id():
@@ -78,23 +91,30 @@ def put(filename, file_type = 'auto'):
     tc.upload_file(filename, conf['history_id'], file_type = file_type)
 
 
-def get( dataset_id ):
+def get( dataset_id, use_objects=True ):
     """
         Given the history_id that is displayed to the user, this function will
         download the file from the history and stores it under /import/
         Return value is the path to the dataset stored under /import/
     """
     conf = _get_conf()
-    gi = get_galaxy_connection()
-    hc = HistoryClient( gi )
-    dc = DatasetClient( gi )
+    gi = get_galaxy_connection(use_objects)
 
     file_path = '/import/%s' % dataset_id
+    history_id = conf["history_id"]
 
-    dataset_mapping = dict( [(dataset['hid'], dataset['id']) for dataset in hc.show_history(conf['history_id'], contents=True)] )
-    try:
-        hc.download_dataset(conf['history_id'], dataset_mapping[dataset_id], file_path, use_default_filename=False, to_ext=None)
-    except:
-        dc.download_dataset(dataset_mapping[dataset_id], file_path, use_default_filename=False)
+    if use_objects:
+        history = gi.histories.get(history_id)
+        datasets = dict([(d.wrapped["hid"], d.id) for d in history.get_datasets()])
+        dataset = history.get_dataset(datasets[dataset_id])
+        dataset.download(open(file_path, 'wb'))
+    else:
+        hc = HistoryClient( gi )
+        dc = DatasetClient( gi )
+        dataset_mapping = dict( [(dataset['hid'], dataset['id']) for dataset in hc.show_history(history_id, contents=True)] )
+        try:
+            hc.download_dataset(history_id, dataset_mapping[dataset_id], file_path, use_default_filename=False, to_ext=None)
+        except:
+            dc.download_dataset(dataset_mapping[dataset_id], file_path, use_default_filename=False)
 
     return file_path
