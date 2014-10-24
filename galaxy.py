@@ -31,6 +31,7 @@ def get_galaxy_connection( use_objects=DEFAULT_USE_OBJECTS ):
         the conditions of REMOTE_USER and galaxy running under uWSGI.
     """
     conf = _get_conf()
+    history_id = conf["history_id"]
     try:
         # Remove trailing slashes
         app_path = conf['galaxy_url'].rstrip('/')
@@ -60,7 +61,7 @@ def get_galaxy_connection( use_objects=DEFAULT_USE_OBJECTS ):
         key=conf['api_key']
         if use_objects:
             gi = objects.GalaxyInstance(url, key)
-            gi.histories.list()
+            gi.histories.get(history_id)
         else:
             gi = galaxy.GalaxyInstance(url=url, key=key)
             gi.histories.get_histories()
@@ -70,7 +71,7 @@ def get_galaxy_connection( use_objects=DEFAULT_USE_OBJECTS ):
             key=conf['api_key']
             if use_objects:
                 gi = objects.GalaxyInstance(url, key)
-                gi.histories.list()
+                gi.histories.get(history_id)
             else:
                 gi = galaxy.GalaxyInstance(url=url, key=key)
                 gi.histories.get_histories()
