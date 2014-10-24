@@ -6,12 +6,15 @@ from bioblend.galaxy import objects
 import yaml
 import subprocess
 
+# Consider not using objects deprecated.
+DEFAULT_USE_OBJECTS = True
+
 def _get_conf( config_file = 'conf.yaml' ):
     with open(config_file, 'rb') as handle:
         conf = yaml.load(handle)
     return conf
 
-def get_galaxy_connection( use_objects=False ):
+def get_galaxy_connection( use_objects=DEFAULT_USE_OBJECTS ):
     """
         Given access to the configuration dict that galaxy passed us, we try and connect to galaxy's API.
 
@@ -79,19 +82,24 @@ def _get_history_id():
     conf = _get_conf()
     return conf['history_id']
 
-def put(filename, file_type = 'auto'):
+def put(filename, file_type = 'auto', use_objects=DEFAULT_USE_OBJECTS ):
     """
         Given a filename of any file accessible to the docker instance, this
         function will upload that file to galaxy using the current history.
         Does not return anything.
     """
     conf = _get_conf()
-    gi = get_galaxy_connection()
-    tc = ToolClient( gi )
-    tc.upload_file(filename, conf['history_id'], file_type = file_type)
+    gi = get_galaxy_connection(use_objects)
+    history_id = conf["history_id"]
+    if use_objects:
+        history = gi.histories.get(history_id)
+        history.upload_dataset( filename, file_type=file_type )
+    else:
+        tc = ToolClient( gi )
+        tc.upload_file(filename, history_id, file_type = file_type)
 
 
-def get( dataset_id, use_objects=True ):
+def get( dataset_id, use_objects=DEFAULT_USE_OBJECTS ):
     """
         Given the history_id that is displayed to the user, this function will
         download the file from the history and stores it under /import/
