@@ -8,11 +8,22 @@ MAINTAINER Björn A. Grüning, bjoern.gruening@gmail.com
 
 ENV DEBIAN_FRONTEND noninteractive
 
+# Ensure cran is available
+RUN (echo "deb http://cran.mtu.edu/bin/linux/debian squeeze-cran3/" >> /etc/apt/sources.list && apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 06F90DE5381BA480)
 RUN apt-get -qq update && apt-get install --no-install-recommends -y apt-transport-https \
     libzmq1 libzmq-dev python-dev libc-dev pandoc python-pip \
     build-essential libblas-dev liblapack-dev gfortran \
     libfreetype6-dev libpng-dev net-tools procps \
-    r-base libreadline-dev && \
+    libxml2-dev libcurl4-openssl-dev \
+    r-base r-base-dev libreadline-dev && \
+    echo ' \
+    update.packages(checkBuilt = TRUE, ask = FALSE, repos="http://cran.rstudio.com/"); \
+    source("http://bioconductor.org/biocLite.R"); \
+    install.packages("dplyr", repos="http://cran.rstudio.com/"); \
+    install.packages("knitr", repos="http://cran.rstudio.com/"); \
+    install.packages("reshape2", repos="http://cran.rstudio.com/"); \
+    biocLite("cummeRbund"); \
+    ' | R --vanilla && \
     pip install distribute --upgrade && \
     pip install pyzmq ipython==2.3 jinja2 tornado pygments numpy biopython scikit-learn pandas \
         scipy sklearn-pandas bioblend matplotlib patsy pysam khmer dendropy ggplot mpld3 sympy rpy2 && \
